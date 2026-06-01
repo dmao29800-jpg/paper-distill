@@ -170,7 +170,7 @@ def main():
         print(f"{'='*50}")
         names = classifier.names if classifier else builder.disciplines
         for name in sorted(names):
-            print(f"  • {name}")
+            print(f"  - {name}")
         print(f"\nDefault mode: auto-detect (no need to specify -d)")
         print(f"Manual mode:  paper-distill -i ./pdfs -o ./out -d <preset>")
         return
@@ -203,12 +203,22 @@ def main():
         logger.info(f"{'='*60}")
         limit = args.limit if args.limit > 0 else len(pdfs)
         for pdf_path in pdfs[:limit]:
-            disc_key, disc_name, score = classifier.classify_from_pdf(pdf_path)
-            bar = "█" * min(int(score), 40)
-            logger.info(
-                f"  {pdf_path.name:40s} → {disc_name:20s} "
-                f"(score: {score:4.0f}) {bar}"
-            )
+            disc_list = classifier.classify_multi_from_pdf(pdf_path)
+            if len(disc_list) == 1:
+                key, name, score = disc_list[0]
+                bar = "█" * min(int(score), 40)
+                logger.info(
+                    f"  {pdf_path.name:40s} → {name:20s} "
+                    f"(score: {score:4.0f}) {bar}"
+                )
+            else:
+                primary = disc_list[0]
+                extras = " + ".join(f"{n}({s:.0f})" for _, n, s in disc_list[1:])
+                bar = "█" * min(int(primary[2]), 40)
+                logger.info(
+                    f"  {pdf_path.name:40s} → {primary[1]}(主,{primary[2]:.0f}) "
+                    f"+ {extras} {bar}"
+                )
         return
 
     if args.dry_run:

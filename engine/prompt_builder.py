@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 # -- Default template (bundled, no Jinja2 dependency needed for basic use) --
 DEFAULT_TEMPLATE = """你是一名"{{ domain }}"领域的数据工程师。基于我提供的论文文本（仅含摘要与正文），请生成用于 LoRA/SFT 的监督样本，输出为 JSONL，每行一个 JSON 对象，字段仅包括：
 
+{% if cross_disciplinary_note %}
+【交叉学科提示】{{ cross_disciplinary_note }}
+{% endif %}
+
 input：问题或指令（中文）
 
 output：回答（中文；必须可由所给摘要/正文概括推得，不得杜撰）
@@ -138,17 +142,34 @@ class PromptBuilder:
         """List available discipline names."""
         return list(self._config.keys())
 
-    def build(self, discipline: str = "generic",
+    def build(self, discipline = "generic",
               paper_filename: str = "{paper_filename}",
               paper_text: str = "{paper_text}") -> str:
         """
-        Build a complete prompt for the given discipline.
-        Returns the prompt string with {paper_filename} and {paper_text} placeholders.
+        Build a complete prompt for the given discipline(s).
+
+        Args:
+            discipline: Single discipline key (str) or list of keys for
+                        cross-disciplinary papers.
+            paper_filename: PDF filename for identification.
+            paper_text: Extracted paper full text.
+
+        Returns:
+            The complete prompt string with all placeholders resolved.
         """
-        # Merge discipline config with defaults
-        cfg = self._config.get(discipline, {})
-        params = dict(self._default_params(discipline))
-        params.update(cfg)
+        if isinstance(discipline, list) and len(discipline) > 1:
+            # Multi-discipline: merge configs and build cross-disciplinary note
+            merged_cfg = self._merge_configs(discipline)
+            params = dict(self._default_params(discipline[0]))
+            params.update(merged_cfg)
+            params["cross_disciplinary_note"] = self._build_cross_disciplinary_note(discipline)
+        else:
+            # Single discipline (str or single-element list)
+            key = discipline[0] if isinstance(discipline, list) else discipline
+            cfg = self._config.get(key, {})
+            params = dict(self._default_params(key))
+            params.update(cfg)
+            params["cross_disciplinary_note"] = ""
 
         if self._jinja2_available:
             template = self._Template(self._template_str)
@@ -166,6 +187,130 @@ class PromptBuilder:
 
         return prompt
 
+    def _merge_configs(self, discipline_keys: list[str]) -> dict:
+        """
+        Merge config entries for multiple disciplines into a single prompt context.
+
+        Merge rules:
+          - domain: join via "与" (2) or "、"+"与" (3+)
+          - numeric_policy: "strict" if ANY discipline is strict
+          - forbidden_names: sorted union (deduplicated)
+          - type_labels: union preserving first-seen order
+          - generic_examples: union preserving first-seen order
+          - target_samples / min_samples: maximum across all
+          - type_distribution: concatenated
+
+        Returns a dict with the same shape as a single YAML discipline entry.
+        """
+        merged: dict = {
+            "domain": "",
+            "numeric_policy": "contextual",
+            "forbidden_names": [],
+            "generic_examples": [],
+            "type_labels": [],
+            "target_samples": 0,
+            "min_samples": 0,
+            "type_distribution": [],
+        }
+
+        domains = []
+        seen_names: set = set()
+        seen_labels: set = set()
+        seen_examples: set = set()
+
+        for key in discipline_keys:
+            cfg = self._config.get(key, {})
+            if not cfg:
+                continue
+
+            # Domain
+            dom = cfg.get("domain", key.replace("_", " ").title())
+            domains.append(dom)
+
+            # Numeric policy: any strict → strict
+            if cfg.get("numeric_policy") == "strict":
+                merged["numeric_policy"] = "strict"
+
+            # Forbidden names: union with dedup
+            for n in cfg.get("forbidden_names", []):
+                if n not in seen_names:
+                    seen_names.add(n)
+                    merged["forbidden_names"].append(n)
+
+            # Type labels: union preserving order
+            for lb in cfg.get("type_labels", []):
+                if lb not in seen_labels:
+                    seen_labels.add(lb)
+                    merged["type_labels"].append(lb)
+
+            # Generic examples: union preserving order
+            for ex in cfg.get("generic_examples", []):
+                if ex not in seen_examples:
+                    seen_examples.add(ex)
+                    merged["generic_examples"].append(ex)
+
+            # Target / min samples: take max
+            merged["target_samples"] = max(
+                merged["target_samples"], cfg.get("target_samples", 0)
+            )
+            merged["min_samples"] = max(
+                merged["min_samples"], cfg.get("min_samples", 0)
+            )
+
+            # Type distribution: concatenate
+            for rule in cfg.get("type_distribution", []):
+                merged["type_distribution"].append(rule)
+
+        # Build domain string
+        if len(domains) == 1:
+            merged["domain"] = domains[0]
+        elif len(domains) == 2:
+            merged["domain"] = f"{domains[0]}与{domains[1]}"
+        else:
+            merged["domain"] = "、".join(domains[:-1]) + f"与{domains[-1]}"
+
+        # Sort forbidden_names for consistency
+        merged["forbidden_names"].sort()
+
+        # Provide defaults if nothing was found
+        if not merged["type_labels"]:
+            merged["type_labels"] = [
+                "解释类", "分析类", "比较类", "评价类", "建议类",
+                "流程类", "因果类", "定义类", "对策类", "分类类",
+                "决策类", "纠错类", "多证据分析类", "风险类",
+            ]
+        if merged["target_samples"] == 0:
+            merged["target_samples"] = 40
+        if merged["min_samples"] == 0:
+            merged["min_samples"] = 30
+
+        return merged
+
+    def _build_cross_disciplinary_note(self, discipline_keys: list[str]) -> str:
+        """
+        Build a note instructing the model to cover multiple disciplines.
+
+        Example:
+          本文涉及多个学科领域：土木工程（主）、材料科学。
+          请在生成样本时覆盖各学科的视角，合理分配不同学科类型的问题，
+          确保每个学科领域均有对应的监督样本产出。
+        """
+        domains = []
+        for i, key in enumerate(discipline_keys):
+            cfg = self._config.get(key, {})
+            dom = cfg.get("domain", key.replace("_", " ").title())
+            if i == 0:
+                domains.append(f"{dom}（主）")
+            else:
+                domains.append(dom)
+
+        fields_str = "、".join(domains)
+        return (
+            f"本文涉及多个学科领域：{fields_str}。"
+            f"请在生成样本时覆盖各学科的视角，合理分配不同学科类型的问题，"
+            f"确保每个学科领域均有对应的监督样本产出。"
+        )
+
     def _strip_jinja_blocks(self, text: str, params: dict) -> str:
         """Remove Jinja2 control blocks when running without Jinja2.
         Simple approach: keep if/endif content when condition is truthy, strip otherwise."""
@@ -177,7 +322,9 @@ class PromptBuilder:
             content = match.group(2)
             should_keep = False
 
-            if "numeric_policy == \"strict\"" in condition:
+            if "cross_disciplinary_note" in condition:
+                should_keep = bool(params.get("cross_disciplinary_note"))
+            elif "numeric_policy == \"strict\"" in condition:
                 should_keep = params.get("numeric_policy") == "strict"
             elif "numeric_policy == \"contextual\"" in condition:
                 should_keep = params.get("numeric_policy") == "contextual"
@@ -207,6 +354,7 @@ class PromptBuilder:
         """Default parameters for a generic discipline."""
         return {
             "domain": discipline.replace("_", " ").title(),
+            "cross_disciplinary_note": "",
             "type_labels": [
                 "解释类", "分析类", "比较类", "评价类", "建议类",
                 "流程类", "因果类", "定义类", "对策类", "分类类",

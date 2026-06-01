@@ -125,14 +125,22 @@ class Pipeline:
                 self._record_result(result)
 
     def _record_result(self, result: dict):
-        """Save checkpoint and track discipline stats."""
+        """Save checkpoint and track discipline stats.
+        Multi-discipline papers count for ALL detected disciplines."""
         self.checkpoint.mark(
             result["filename"], result["status"],
             result["sample_count"], result["duration"], result["error"],
         )
         self.checkpoint.save()
-        disc = result.get("discipline", "unknown")
-        self._discipline_counts[disc] = self._discipline_counts.get(disc, 0) + 1
+
+        # Multi-discipline: count ALL detected disciplines
+        disc_details = result.get("discipline_details", [])
+        if disc_details:
+            for key, _, _ in disc_details:
+                self._discipline_counts[key] = self._discipline_counts.get(key, 0) + 1
+        else:
+            disc = result.get("discipline", "unknown")
+            self._discipline_counts[disc] = self._discipline_counts.get(disc, 0) + 1
 
 
 def process_single(
@@ -176,31 +184,65 @@ def process_single(
         log.error(f"[{filename}] {result['error']}")
         return result
 
-    # Step 1.5: Auto-detect discipline if requested
+    # Step 1.5: Auto-detect discipline(s) if requested
     actual_discipline = discipline
+    disc_details: list[tuple[str, str, float]] = []  # (key, name, score)
+
     if discipline == AUTO and classifier is not None:
-        disc_key, disc_name, score = classifier.classify(paper_text)
-        actual_discipline = disc_key
-        result["discipline"] = disc_key
-        log.info(
-            f"[{filename}] Auto-detected: {disc_name} "
-            f"(key={disc_key}, score={score:.0f})"
-        )
+        disc_list = classifier.classify_multi(paper_text)
+        disc_details = disc_list
+        primary_key, primary_name, primary_score = disc_list[0]
+        actual_discipline = primary_key
+        result["discipline"] = primary_key
+        result["discipline_details"] = disc_list
+
+        # Logging
+        if len(disc_list) == 1 and primary_key == "generic":
+            log.info(f"[{filename}] Auto-detected: generic (score={primary_score:.0f})")
+        elif len(disc_list) == 1:
+            log.info(
+                f"[{filename}] Auto-detected: {primary_name} "
+                f"(key={primary_key}, score={primary_score:.0f})"
+            )
+        else:
+            extras = " + ".join(f"{n}({s:.0f})" for _, n, s in disc_list[1:])
+            log.info(
+                f"[{filename}] Auto-detected: {primary_name}(主,{primary_score:.0f}) "
+                f"+ {extras}"
+            )
+
     elif discipline == AUTO:
         # No classifier available, fall back to generic
         actual_discipline = "generic"
         result["discipline"] = "generic"
+        disc_details = [("generic", "学术研究", 0.0)]
+        result["discipline_details"] = disc_details
         log.warning(f"[{filename}] No classifier, using 'generic'")
 
-    # Step 2: Build prompt
+    else:
+        # Fixed discipline mode
+        actual_discipline = discipline
+        result["discipline"] = discipline
+        cfg = prompt_builder._config.get(discipline, {})
+        disc_name = cfg.get("domain", discipline)
+        disc_details = [(discipline, disc_name, 0.0)]
+        result["discipline_details"] = disc_details
+
+    # Step 2: Build prompt (pass list for multi-discipline, str otherwise)
+    if len(disc_details) > 1:
+        prompt_disc = [d[0] for d in disc_details]
+    else:
+        prompt_disc = actual_discipline
+
     full_prompt = prompt_builder.build(
-        discipline=actual_discipline,
+        discipline=prompt_disc,
         paper_filename=filename,
         paper_text=paper_text,
     )
 
     # Step 3: Call API
-    log.info(f"[{filename}] Calling {model} (discipline={actual_discipline})...")
+    disc_label = "+".join(d[0] for d in disc_details) if disc_details else actual_discipline
+    log.info(f"[{filename}] Calling {model} (discipline={disc_label})...")
     response = api_client.chat(full_prompt, model=model)
     if response is None:
         result["status"] = "failed"
@@ -223,11 +265,21 @@ def process_single(
         log.info(f"  Raw response saved: {debug.name}")
         return result
 
-    # Step 5: Save
-    out_path.write_text(
-        "\n".join(json.dumps(s, ensure_ascii=False) for s in valid),
-        encoding="utf-8",
-    )
+    # Step 5: Save with discipline header
+    disc_details_final = result.get("discipline_details", [])
+    if disc_details_final:
+        if len(disc_details_final) == 1 and disc_details_final[0][0] == "generic":
+            header = "# 学科归属：学术研究"
+        else:
+            parts = [f"{disc_details_final[0][1]}（主）"]
+            for _, name, _ in disc_details_final[1:]:
+                parts.append(name)
+            header = "# 学科归属：" + "、".join(parts)
+    else:
+        header = "# 学科归属：学术研究"
+
+    jsonl_body = "\n".join(json.dumps(s, ensure_ascii=False) for s in valid)
+    out_path.write_text(header + "\n" + jsonl_body, encoding="utf-8")
     duration = time.time() - start
     result["duration"] = round(duration, 1)
     result["status"] = "success"
