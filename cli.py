@@ -16,6 +16,7 @@ import sys
 import argparse
 import logging
 import textwrap
+import shutil
 from pathlib import Path
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -59,6 +60,46 @@ def setup_logging(output_dir: Path) -> logging.Logger:
 
     logger.info(f"Log file: {log_file}")
     return logger
+
+
+def cleanup_output(output_dir: Path, logger: logging.Logger):
+    """Remove intermediate files, keep only JSONL .txt output.
+
+    Deletes: progress.json, process_*.log, *_debug_raw.txt
+    Keeps:   *.txt (JSONL output)
+    """
+    # Close log file handlers so we can delete the log
+    for handler in list(logger.handlers):
+        if isinstance(handler, logging.FileHandler):
+            handler.close()
+            logger.removeHandler(handler)
+
+    patterns = [
+        "progress.json",
+        "process_*.log",
+    ]
+
+    cleaned = 0
+    for pattern in patterns:
+        for f in output_dir.glob(pattern):
+            try:
+                f.unlink()
+                cleaned += 1
+            except OSError:
+                pass
+
+    # Clean debug_raw files
+    for f in output_dir.glob("*_debug_raw.txt"):
+        try:
+            f.unlink()
+            cleaned += 1
+        except OSError:
+            pass
+
+    if cleaned:
+        # Use print since logger may have been closed
+        print(f"  Cleaned {cleaned} intermediate file(s)")
+    return cleaned
 
 
 def print_stats(stats: dict, api_client: DeepSeekClient,
@@ -141,6 +182,9 @@ def main():
     parser.add_argument(
         "--classify", action="store_true",
         help="Show auto-detected discipline for each paper (use with --dry-run)")
+    parser.add_argument(
+        "--no-clean", action="store_true",
+        help="Keep intermediate files (progress.json, logs, debug_raw.txt)")
     args = parser.parse_args()
 
     # --- Config path resolution ---
@@ -249,8 +293,12 @@ def main():
     try:
         stats = pipeline.run()
         print_stats(stats, api_client, pipeline, logger)
+        if not args.no_clean:
+            cleanup_output(output_dir, logger)
     except KeyboardInterrupt:
         logger.info("\n⏸️  Interrupted. Progress saved — resume with same command.")
+        if not args.no_clean:
+            logger.info("  Intermediate files kept for resume.")
         sys.exit(130)
 
 
