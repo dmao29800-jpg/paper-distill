@@ -2,6 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub stars](https://img.shields.io/github/stars/dmao29800-jpg/paper-distill?style=social)](https://github.com/dmao29800-jpg/paper-distill)
+[![GitHub forks](https://img.shields.io/github/forks/dmao29800-jpg/paper-distill?style=social)](https://github.com/dmao29800-jpg/paper-distill)
 
 > 🚀 从学术论文 PDF 批量生成大模型 SFT 微调训练数据
 >
@@ -27,10 +29,32 @@ Fine-tuning LLMs requires high-quality domain data, but manually extracting QA p
 
 ---
 
-## Quick Start / 快速开始
+## Installation / 安装方式
+
+> **无需独立网站，GitHub 本身就是你的产品主页。** No website needed — GitHub is your product homepage.
+
+两种方式任选 / Choose one:
+
+### 方式一：Claude Code Skill（推荐 ★）
+
+适用于 [Claude Code](https://claude.ai/code) 用户。一行命令安装，之后对 Claude 说 "帮我把这 50 篇论文蒸馏成 SFT 数据" 即可自动运行。
+
+For [Claude Code](https://claude.ai/code) users. One-command install, then just tell Claude what to do.
 
 ```bash
-# 1. Clone
+/skill install github.com/dmao29800-jpg/paper-distill
+```
+
+安装后 Claude 会自动读取项目的 CLAUDE.md，按指引调用引擎。无需手动记参数。
+
+After installing, Claude reads CLAUDE.md and runs the pipeline automatically. No need to remember CLI flags.
+
+### 方式二：直接使用 / Direct Use
+
+没有 Claude Code？直接克隆仓库。No Claude Code? Just clone the repo.
+
+```bash
+# 1. Clone / 克隆
 git clone https://github.com/dmao29800-jpg/paper-distill.git
 cd paper-distill
 
@@ -46,7 +70,45 @@ export DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
 python cli.py -i ./papers -o ./output -c 3
 ```
 
+> 💡 也可以在 GitHub 仓库页面点击绿色的 **"Code"** 按钮 → **"Download ZIP"**，解压后直接使用，连 git 都不需要。
+>
+> 💡 Or click the green **"Code"** button → **"Download ZIP"** on the GitHub page — no git required.
+
+### 分发模型 / Distribution Model
+
+```
+用户 → GitHub 仓库首页 → 看 README 了解功能（中英双语）
+                       → 点 Code → Download ZIP（零门槛）
+                       → 或复制 /skill install 命令（Claude Code 用户）
+                       → 或 git clone（开发者）
+```
+
+---
+
+## Quick Start / 快速开始
+
+> 以下命令假定你已经完成安装。If you completed installation above, skip to here.
+
+```bash
+# 🔍 自动检测学科（默认，推荐）/ Auto-detect (default, recommended)
+python cli.py -i ./papers -o ./output -c 3
+
+# 📋 预览每篇论文会被识别为什么学科 / Preview classification
+python cli.py -i ./papers --dry-run --classify -n 20
+
+# 🎯 手动指定学科 / Fixed discipline
+python cli.py -i ./papers -o ./output -d materials_science
+
+# ⚡ 高并发 + 限制数量 / High concurrency + limit
+python cli.py -i ./papers -o ./output -c 5 -n 100
+
+# 📚 查看全部 20 个学科预设 / List all disciplines
+python cli.py --list-disciplines
+```
+
 > ⚠️ **Security / 安全提醒**：API Key 应通过环境变量传入，不要硬编码在代码或配置文件中，更不要提交到 Git。建议将 `export DEEPSEEK_API_KEY=...` 写入 `~/.bashrc` 或使用 `.env` 文件（已在 `.gitignore` 中排除）。
+>
+> ⚠️ **Security**: Always use the `DEEPSEEK_API_KEY` env var — never hardcode keys. The `.env` file is already in `.gitignore`.
 
 ---
 
