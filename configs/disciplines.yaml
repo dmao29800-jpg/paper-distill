@@ -1,0 +1,1007 @@
+# Paper Distill — 20 STEM Disciplines with Auto-Detection Keywords
+# Each discipline has: domain context, type labels, forbidden names,
+# numeric policy, and keywords for automatic paper classification.
+
+disciplines:
+
+  # =========================================================================
+  # 土木与建筑大类
+  # =========================================================================
+  civil_engineering:
+    domain: "土木工程"
+    keywords:
+      high:  # 高权重 (match 1 = score +3)
+        - 盾构
+        - 隧道
+        - 基坑
+        - 桩基
+        - 挡土墙
+        - 土压平衡
+        - 管片
+        - 盾尾
+        - 注浆
+        - 掌子面
+      medium:  # 中权重 (match 1 = score +2)
+        - 地基
+        - 软土
+        - 沉降
+        - 开挖
+        - 支护
+        - 围岩
+        - 衬砌
+        - 锚杆
+        - 边坡
+        - 承载力
+        - 岩土
+        - 土层
+        - 地下连续墙
+        - 泥水
+        - 掘进
+        - 地层
+        - 地表沉降
+        - 土体
+        - 灌注桩
+        - 抗拔
+    numeric_policy: strict
+    forbidden_names: [FLAC3D, ABAQUS, PLAXIS, ANSYS, MIDAS, Duncan-Chang, CSM, Peck]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 流程类/因果类/定义类/对策类/分类类
+      - 决策类/纠错类/多证据分析类/风险类
+    target_samples: 40
+    min_samples: 30
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "建议/对策/流程/决策/风险 ≤ 30%"
+
+  structural_engineering:
+    domain: "结构工程"
+    keywords:
+      high:
+        - 钢结构
+        - 混凝土结构
+        - 抗震
+        - 剪力墙
+        - 预应力
+        - 组合结构
+        - 钢管混凝土
+        - 屈曲
+        - 疲劳
+        - 节点
+      medium:
+        - 框架
+        - 梁柱
+        - 延性
+        - 刚度
+        - 荷载
+        - 裂缝
+        - 加载
+        - 滞回
+        - 耗能
+        - 加固
+        - 碳纤维
+        - 粘钢
+        - 阻尼器
+        - 隔震
+        - 倒塌
+        - 振动台
+        - 高强
+        - 截面
+        - 配筋
+        - 徐变
+    numeric_policy: strict
+    forbidden_names: [ABAQUS, ANSYS, SAP2000, ETABS, OpenSees, PKPM, Midas, ETABS]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 流程类/因果类/定义类/对策类/分类类
+      - 设计类/验算类/优化类/风险评估类
+    target_samples: 40
+    min_samples: 30
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价/优化 ≥ 30%"
+      - "建议/对策/设计/流程 ≤ 30%"
+
+  architecture_urban:
+    domain: "建筑与城市规划"
+    keywords:
+      high:
+        - 城市设计
+        - 建筑节能
+        - 绿色建筑
+        - 城市规划
+        - 空间句法
+        - 热岛效应
+        - 建筑物理
+        - 日照
+        - 通风
+        - 能耗
+      medium:
+        - 建筑
+        - 街区
+        - 公共空间
+        - 景观
+        - 住区
+        - 室内
+        - 热环境
+        - 光环境
+        - 声环境
+        - 风环境
+        - 容积率
+        - 用地
+        - 旧城
+        - 更新
+        - 城镇化
+        - 形态
+        - 朝向
+        - 遮阳
+        - 围护结构
+        - 能耗模拟
+    numeric_policy: contextual
+    forbidden_names: [EnergyPlus, DesignBuilder, Ecotect, Phoenics, Fluent, ENVI-met, Ladybug]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 设计类/优化类/因果类/定义类/对策类
+    target_samples: 35
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "建议/对策/设计 ≤ 30%"
+
+  # =========================================================================
+  # 机械与制造大类
+  # =========================================================================
+  mechanical_engineering:
+    domain: "机械工程"
+    keywords:
+      high:
+        - 齿轮
+        - 轴承
+        - 转子
+        - 摩擦
+        - 磨损
+        - 润滑
+        - 疲劳寿命
+        - 断裂
+        - 有限元
+        - 动力学
+      medium:
+        - 传动
+        - 啮合
+        - 振动
+        - 模态
+        - 刚度
+        - 阻尼
+        - 应力
+        - 应变
+        - 仿真
+        - 优化
+        - 液压
+        - 气动
+        - 密封
+        - 联轴器
+        - 电主轴
+        - 加工
+        - 切削
+        - 铸造
+        - 焊接
+        - 锻造
+    numeric_policy: contextual
+    forbidden_names: [ANSYS, ABAQUS, ADAMS, CATIA, SolidWorks, ProE, MATLAB, SIMULINK]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 设计类/优化类/因果类/定义类/对策类
+      - 故障诊断类/寿命预测类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "设计/优化/对策 ≤ 30%"
+
+  aerospace:
+    domain: "航空航天"
+    keywords:
+      high:
+        - 航空发动机
+        - 涡轮
+        - 叶片
+        - 飞行器
+        - 空气动力学
+        - 推进
+        - 燃烧室
+        - 升力
+        - 阻力
+        - 高超音速
+      medium:
+        - 翼型
+        - 进气道
+        - 尾喷管
+        - 涡流
+        - 风洞
+        - 气动
+        - 热障
+        - 冷却
+        - 热防护
+        - 再入
+        - 轨道
+        - 卫星
+        - 火箭
+        - 复合材料
+        - 钛合金
+        - 颤振
+        - 抖振
+        - 层流
+        - 湍流
+        - 激波
+    numeric_policy: strict
+    forbidden_names: [ANSYS, Fluent, CFX, Tecplot, CATIA, STAR-CCM, Pointwise, ICEM]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 设计类/优化类/因果类/定义类/对策类
+      - 仿真类/试验类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "设计/优化/对策 ≤ 30%"
+
+  # =========================================================================
+  # 材料与化工大类
+  # =========================================================================
+  materials_science:
+    domain: "材料科学与工程"
+    keywords:
+      high:
+        - 合金
+        - 复合材料
+        - 陶瓷
+        - 高分子
+        - 纳米材料
+        - 涂层
+        - 腐蚀
+        - 微观组织
+        - 晶粒
+        - 热处理
+      medium:
+        - 拉伸
+        - 硬度
+        - 韧性
+        - 强度
+        - 弹性模量
+        - 相变
+        - 析出
+        - 固溶
+        - 时效
+        - 烧结
+        - 粉末冶金
+        - 薄膜
+        - 界面
+        - 位错
+        - 织构
+        - 再结晶
+        - 氧化
+        - 磨损
+        - 疲劳
+        - 断裂韧性
+    numeric_policy: contextual
+    forbidden_names: [XRD, SEM, TEM, AFM, XPS, EBSD, Hall-Petch]
+    type_labels:
+      - 解释类/分析类/比较类/评价类
+      - 制备类/表征类/性能类/机理类
+      - 因果类/定义类/对策类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/机理/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "制备/表征/对策 ≤ 30%"
+
+  chemical_engineering:
+    domain: "化学工程"
+    keywords:
+      high:
+        - 催化
+        - 反应器
+        - 精馏
+        - 吸附
+        - 膜分离
+        - 聚合
+        - 传质
+        - 传热
+        - 流化床
+        - 萃取
+      medium:
+        - 化工
+        - 催化剂
+        - 转化率
+        - 选择性
+        - 收率
+        - 填料塔
+        - 换热器
+        - 吸收
+        - 解析
+        - 干燥
+        - 结晶
+        - 过滤
+        - 多相流
+        - 计算流体
+        - 工艺
+        - 脱硫
+        - 脱硝
+        - 碳捕集
+        - 电解
+        - 合成
+    numeric_policy: contextual
+    forbidden_names: [Aspen, HYSYS, ChemCAD, gPROMS, COMSOL, Fluent]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 机理类/流程类/因果类/定义类/对策类
+      - 工艺优化类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/机理/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "建议/对策/流程 ≤ 30%"
+
+  chemistry:
+    domain: "化学"
+    keywords:
+      high:
+        - 合成
+        - 表征
+        - 配合物
+        - 配体
+        - 催化机理
+        - 光谱
+        - 色谱
+        - 质谱
+        - 电化学
+        - 官能团
+      medium:
+        - 反应机理
+        - 产率
+        - 纯度
+        - 分子
+        - 离子
+        - 键
+        - 晶体结构
+        - 氧化还原
+        - 聚合反应
+        - 缩合
+        - 取代
+        - 加成
+        - 消除
+        - 重排
+        - 手性
+        - 对映
+        - 滴定
+        - 缓冲
+        - 络合
+        - 荧光
+    numeric_policy: contextual
+    forbidden_names: [Bruker, Agilent, Shimadzu, Thermo, Gaussian, VASP, Diamond]
+    type_labels:
+      - 解释类/分析类/比较类/评价类
+      - 机理类/合成类/表征类/因果类/定义类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/机理/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "合成/表征/对策 ≤ 30%"
+
+  # =========================================================================
+  # 电气与信息大类
+  # =========================================================================
+  electrical_engineering:
+    domain: "电气工程"
+    keywords:
+      high:
+        - 电机
+        - 变压器
+        - 电力系统
+        - 继电保护
+        - 绝缘
+        - 放电
+        - 电磁场
+        - 逆变器
+        - 整流
+        - 绕组
+      medium:
+        - 电压
+        - 电流
+        - 功率
+        - 谐波
+        - 短路
+        - 接地
+        - 配电网
+        - 输电
+        - 变电
+        - 断路器
+        - 同步
+        - 永磁
+        - 励磁
+        - 定子
+        - 转子
+        - 损耗
+        - 温升
+        - 局放
+        - 击穿
+        - 闪络
+    numeric_policy: contextual
+    forbidden_names: [MATLAB, Simulink, PSCAD, PSSE, ETAP, ANSYS, COMSOL]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 机理类/故障诊断类/因果类/定义类/对策类
+      - 设计类/优化类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/机理 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "设计/优化/对策 ≤ 30%"
+
+  electronics:
+    domain: "电子科学与技术"
+    keywords:
+      high:
+        - 集成电路
+        - 半导体
+        - 晶体管
+        - CMOS
+        - 芯片
+        - 封装
+        - 天线
+        - 射频
+        - 滤波器
+        - MEMS
+      medium:
+        - 硅基
+        - 氮化镓
+        - 碳化硅
+        - 光刻
+        - 刻蚀
+        - 掺杂
+        - 互连
+        - 功耗
+        - 散热
+        - 信号
+        - 噪声
+        - 带宽
+        - 谐振
+        - 阻抗
+        - 微波
+        - 毫米波
+        - 太赫兹
+        - 传感器
+        - 执行器
+        - 微纳
+    numeric_policy: contextual
+    forbidden_names: [Cadence, Synopsys, Mentor, Keysight, ADS, HFSS, CST, COMSOL]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 设计类/优化类/因果类/定义类/对策类
+      - 仿真类/测试类/工艺类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "设计/优化/方法 ≤ 30%"
+
+  computer_science:
+    domain: "计算机科学与技术"
+    keywords:
+      high:
+        - 算法
+        - 神经网络
+        - 深度学习
+        - 自然语言
+        - 计算机视觉
+        - 强化学习
+        - 图神经网络
+        - 联邦学习
+        - 知识图谱
+        - 推荐系统
+      medium:
+        - 机器学习
+        - 数据集
+        - 分类
+        - 检测
+        - 分割
+        - 模型
+        - 训练
+        - 推理
+        - 精度
+        - 召回
+        - 特征
+        - 嵌入
+        - 注意力
+        - Transformer
+        - 编码器
+        - 解码器
+        - 优化器
+        - 损失
+        - 梯度
+        - 卷积
+    numeric_policy: contextual
+    forbidden_names: [Google, Microsoft, OpenAI, Meta, Apple, AWS, Azure, GPT, BERT, LLaMA]
+    type_labels:
+      - 解释类/分析类/比较类/评价类
+      - 实现类/算法类/架构类/优化类
+      - 因果类/定义类/对策类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/算法 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "实现/架构/优化 ≤ 30%"
+
+  control_automation:
+    domain: "控制科学与工程"
+    keywords:
+      high:
+        - 控制器
+        - PID
+        - 鲁棒
+        - 自适应
+        - 状态估计
+        - 卡尔曼滤波
+        - 滑模
+        - 反馈
+        - 前馈
+        - 轨迹
+      medium:
+        - 闭环
+        - 开环
+        - 稳定性
+        - 收敛
+        - 跟踪
+        - 误差
+        - 扰动
+        - 观测器
+        - 最优
+        - 预测控制
+        - 模糊控制
+        - 神经网络控制
+        - 执行器
+        - 传感器
+        - 动力学
+        - 运动学
+        - 路径规划
+        - 避障
+        - 协同
+        - 编队
+    numeric_policy: contextual
+    forbidden_names: [MATLAB, Simulink, ROS, Gazebo, dSPACE, LabVIEW]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 理论类/算法类/因果类/定义类/对策类
+      - 仿真类/实验类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/理论/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "方法/对策/实验 ≤ 30%"
+
+  # =========================================================================
+  # 理学大类
+  # =========================================================================
+  physics:
+    domain: "物理学"
+    keywords:
+      high:
+        - 量子
+        - 超导
+        - 拓扑
+        - 凝聚态
+        - 光学
+        - 等离子体
+        - 粒子
+        - 光子
+        - 自旋
+        - 能带
+      medium:
+        - 哈密顿
+        - 波函数
+        - 薛定谔
+        - 费米
+        - 玻色
+        - 能级
+        - 激发
+        - 散射
+        - 衍射
+        - 干涉
+        - 偏振
+        - 激光
+        - 磁场
+        - 电场
+        - 低温
+        - 高压
+        - 相图
+        - 临界
+        - 涨落
+        - 对称性
+    numeric_policy: contextual
+    forbidden_names: [VASP, Quantum ESPRESSO, COMSOL, LAMMPS, Gaussian, Wien2k]
+    type_labels:
+      - 解释类/分析类/比较类/评价类
+      - 理论类/机理类/因果类/定义类/对策类
+      - 实验类/计算类
+    target_samples: 35
+    min_samples: 20
+    type_distribution:
+      - "解释/理论/机理 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "实验/计算/对策 ≤ 30%"
+
+  mathematics:
+    domain: "数学与应用数学"
+    keywords:
+      high:
+        - 定理
+        - 证明
+        - 收敛性
+        - 偏微分方程
+        - 数值方法
+        - 优化算法
+        - 随机过程
+        - 泛函
+        - 拓扑
+        - 代数
+      medium:
+        - 引理
+        - 推论
+        - 不等式
+        - 迭代
+        - 近似
+        - 误差估计
+        - 稳定性分析
+        - 特征值
+        - 奇异值
+        - 分解
+        - 插值
+        - 逼近
+        - 离散化
+        - 网格
+        - 边界条件
+        - 初值
+        - 边值
+        - 解析解
+        - 数值解
+        - 渐近
+    numeric_policy: contextual
+    forbidden_names: [MATLAB, Mathematica, Maple, NumPy, SciPy, LAPACK, PETSc]
+    type_labels:
+      - 解释类/分析类/比较类/定义类
+      - 证明类/推导类/定理类/因果类/对策类
+      - 方法类/算法类
+    target_samples: 35
+    min_samples: 20
+    type_distribution:
+      - "解释/定义/定理 ≥ 40%"
+      - "分析/比较/证明 ≥ 30%"
+      - "方法/算法/对策 ≤ 30%"
+
+  # =========================================================================
+  # 环境与能源大类
+  # =========================================================================
+  environmental_science:
+    domain: "环境科学与工程"
+    keywords:
+      high:
+        - 污染
+        - 废水
+        - 废气
+        - 固废
+        - 土壤修复
+        - 重金属
+        - 有机物
+        - 降解
+        - 吸附
+        - 光催化
+      medium:
+        - COD
+        - BOD
+        - 氨氮
+        - 总磷
+        - 总氮
+        - 活性污泥
+        - 膜生物
+        - 厌氧
+        - 好氧
+        - 硝化
+        - 反硝化
+        - 絮凝
+        - 沉淀
+        - 过滤
+        - 消毒
+        - 生态
+        - 排放
+        - 监测
+        - 风险评估
+        - 碳足迹
+    numeric_policy: strict
+    forbidden_names: [EPA, WHO, ISO]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 机理类/流程类/因果类/定义类/对策类
+      - 风险评估类/监测类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/机理/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "建议/对策/流程 ≤ 30%"
+
+  energy_power:
+    domain: "能源与动力工程"
+    keywords:
+      high:
+        - 锅炉
+        - 汽轮机
+        - 燃烧
+        - 光伏
+        - 风电
+        - 储能
+        - 电池
+        - 换热
+        - 制冷
+        - 热泵
+      medium:
+        - 热效率
+        - 循环
+        - 朗肯
+        - 布雷顿
+        - 工质
+        - 余热
+        - 联产
+        - 燃烧效率
+        - 排放
+        - 污染物
+        - 太阳能
+        - 风能
+        - 生物质
+        - 地热
+        - 氢能
+        - 燃料电池
+        - 锂离子
+        - 固态电池
+        - 荷电
+        - 功率密度
+    numeric_policy: contextual
+    forbidden_names: [ANSYS, Fluent, COMSOL, ASPEN, Ebsilon, GateCycle, THERMOFLEX]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 机理类/设计类/优化类/因果类/定义类/对策类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/机理/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "设计/优化/对策 ≤ 30%"
+
+  # =========================================================================
+  # 交通与水利大类
+  # =========================================================================
+  transportation:
+    domain: "交通运输工程"
+    keywords:
+      high:
+        - 交通流
+        - 信号控制
+        - 智能交通
+        - 自动驾驶
+        - 路面
+        - 沥青
+        - 轨道
+        - 车辆
+        - 交叉口
+        - 拥堵
+      medium:
+        - 通行能力
+        - 延误
+        - 排队
+        - 跟驰
+        - 换道
+        - 公交
+        - 地铁
+        - 高铁
+        - 轮轨
+        - 接触网
+        - 路基
+        - 道床
+        - 钢轨
+        - 车流
+        - 信号灯
+        - 绿波
+        - 检测器
+        - 视频
+        - 雷达
+        - 定位
+    numeric_policy: contextual
+    forbidden_names: [VISSIM, TransCAD, EMME, SYNCHRO, CUBE, SUMO, CARLA]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 模型类/优化类/因果类/定义类/对策类
+      - 仿真类/预测类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "模型/对策/优化 ≤ 30%"
+
+  hydrology_water:
+    domain: "水利工程"
+    keywords:
+      high:
+        - 水文
+        - 流域
+        - 大坝
+        - 水库
+        - 洪水
+        - 泥沙
+        - 渗流
+        - 水闸
+        - 渠道
+        - 水轮机
+      medium:
+        - 径流
+        - 降雨
+        - 蒸发
+        - 入渗
+        - 地下水
+        - 含水层
+        - 抽水蓄能
+        - 水电站
+        - 调水
+        - 灌溉
+        - 排水
+        - 防洪
+        - 溃坝
+        - 冲刷
+        - 淤积
+        - 水质
+        - 水力学
+        - 明渠
+        - 管流
+        - 堰
+    numeric_policy: contextual
+    forbidden_names: [HEC-RAS, SWAT, MIKE, MODFLOW, Delft3D, FLOW-3D, ANSYS]
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 机理类/模型类/因果类/定义类/对策类
+      - 预测类/风险评估类/优化类
+    target_samples: 40
+    min_samples: 25
+    type_distribution:
+      - "解释/机理/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "模型/对策/预测 ≤ 30%"
+
+  geology_geophysics:
+    domain: "地质与地球物理"
+    keywords:
+      high:
+        - 地震
+        - 断层
+        - 构造
+        - 岩浆
+        - 矿床
+        - 成矿
+        - 地壳
+        - 地幔
+        - 板块
+        - 勘探
+      medium:
+        - 地层
+        - 沉积
+        - 变质
+        - 火成
+        - 岩石
+        - 矿物
+        - 节理
+        - 褶皱
+        - 风化
+        - 溶蚀
+        - 滑坡
+        - 泥石流
+        - 崩塌
+        - 地热
+        - 测井
+        - 电法
+        - 磁法
+        - 重力
+        - 遥感
+        - 地质
+    numeric_policy: contextual
+    forbidden_names: [ArcGIS, ENVI, Petrel, Landmark, Geosoft, Surfer, MODFLOW]
+    type_labels:
+      - 解释类/分析类/比较类/评价类
+      - 机理类/演化类/因果类/定义类/对策类
+      - 勘探类/预测类/风险评估类
+    target_samples: 35
+    min_samples: 20
+    type_distribution:
+      - "解释/机理/演化 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "预测/对策/勘探 ≤ 30%"
+
+  # =========================================================================
+  # 生物与医学大类
+  # =========================================================================
+  biology_medicine:
+    domain: "生物医学"
+    keywords:
+      high:
+        - 基因
+        - 蛋白
+        - 细胞
+        - 肿瘤
+        - 免疫
+        - 信号通路
+        - 突变
+        - 表达
+        - 受体
+        - 凋亡
+      medium:
+        - DNA
+        - RNA
+        - 转录
+        - 翻译
+        - 增殖
+        - 分化
+        - 迁移
+        - 侵袭
+        - 转移
+        - 血管
+        - 炎症
+        - 氧化应激
+        - 自噬
+        - 代谢
+        - 线粒体
+        - 干细胞
+        - 小鼠
+        - 体内
+        - 体外
+        - 临床
+    numeric_policy: strict
+    forbidden_names: [CRISPR, siRNA, shRNA, GWAS, TCGA, GEO, STRING, KEGG, GO]
+    type_labels:
+      - 解释类/分析类/比较类/评价类
+      - 机制类/因果类/定义类/对策类
+      - 诊断类/预后类/风险类/治疗类
+    target_samples: 35
+    min_samples: 20
+    type_distribution:
+      - "解释/机制/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "诊断/预后/对策 ≤ 30%"
+
+  # =========================================================================
+  # 通用（兜底）
+  # =========================================================================
+  generic:
+    domain: "学术研究"
+    keywords:
+      high: []
+      medium: []
+    numeric_policy: contextual
+    forbidden_names: []
+    type_labels:
+      - 解释类/分析类/比较类/评价类/建议类
+      - 流程类/因果类/定义类/对策类/分类类
+      - 决策类/纠错类/多证据分析类
+    target_samples: 30
+    min_samples: 20
+    type_distribution:
+      - "解释/定义/因果 ≥ 40%"
+      - "分析/比较/评价 ≥ 30%"
+      - "建议/对策/流程 ≤ 30%"

@@ -1,0 +1,29 @@
+# Paper Distill — .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Output directories (generated data, not code)
+output/
+test_output/
+test_auto/
+
+# Logs
+*.log
+
+# Environment
+.env
