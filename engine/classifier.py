@@ -139,7 +139,7 @@ class DisciplineClassifier:
                 f"ClassifyMulti: best='{top_key}' score={top_score:.0f} "
                 f"< threshold={CONFIDENCE_THRESHOLD}, falling back to 'generic'"
             )
-            return [("generic", "学术研究", top_score)]
+            return [("generic", "学术研究", 0.0)]
 
         # Always include the top discipline
         result = [(top_key, self._disciplines[top_key]["domain"], top_score)]

@@ -193,11 +193,16 @@ class PromptBuilder:
             prompt = template.render(**params)
         else:
             prompt = self._template_str
-            # Simple variable substitution
+            # Simple variable substitution (handles {{ var }} and {{ var | filter }})
+            import re as _re
             for key, value in params.items():
                 if isinstance(value, list):
                     value = "\n".join(str(v) for v in value)
-                prompt = prompt.replace(f"{{{{{{ key }}}}}}", str(value))
+                # Match {{ key }} with optional spaces and optional | filter
+                prompt = _re.sub(
+                    r'\{\{\s*' + _re.escape(key) + r'\s*(?:\|[^}]*)?\s*\}\}',
+                    str(value), prompt
+                )
 
         # Handle conditional blocks in non-Jinja2 mode
         prompt = self._strip_jinja_blocks(prompt, params)
@@ -339,6 +344,12 @@ class PromptBuilder:
         import re
 
         # Handle {% if %}...{% endif %} blocks (simple cases)
+        # Pre-process: resolve nested {% if not loop.last %} inside for loops
+        text = re.sub(
+            r'\{%\s*if\s+not\s+loop\.last\s*%\}(.*?)\{%\s*endif\s*%\}',
+            r'\1', text
+        )
+
         def replacer(match):
             condition = match.group(1).strip()
             content = match.group(2)

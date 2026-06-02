@@ -21,7 +21,7 @@ def parse_jsonl_response(text: str) -> tuple[list[dict], int, int]:
     cleaned = text.strip()
 
     # Strip markdown code block if present
-    m = re.match(r"```(?:jsonl?|jsonl)?\s*\n?(.*?)\n?```", cleaned, re.DOTALL)
+    m = re.search(r"```(?:jsonl?)?\s*\n?(.*?)\n?```", cleaned, re.DOTALL)
     if m:
         cleaned = m.group(1).strip()
 

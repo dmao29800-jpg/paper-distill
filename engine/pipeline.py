@@ -121,8 +121,20 @@ class Pipeline:
                 for pdf_path in pending
             }
             for future in as_completed(futures):
-                result = future.result()
-                self._record_result(result)
+                pdf_path = futures[future]
+                try:
+                    result = future.result()
+                    self._record_result(result)
+                except Exception as e:
+                    logger.error(f"Worker crashed for {pdf_path.name}: {e}")
+                    self._record_result({
+                        "filename": pdf_path.name,
+                        "status": "failed",
+                        "sample_count": 0,
+                        "duration": 0,
+                        "error": str(e)[:200],
+                        "discipline": self.discipline,
+                    })
 
     def _record_result(self, result: dict):
         """Save checkpoint and track discipline stats.
