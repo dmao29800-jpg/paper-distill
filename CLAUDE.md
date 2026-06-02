@@ -4,6 +4,87 @@
 
 Repository: https://github.com/dmao29800-jpg/paper-distill
 
+---
+
+## 全新电脑从零部署
+
+一台空白电脑，到能跑起来，一共 6 步。
+
+### 第 1 步：装运行环境
+
+| 软件 | 下载 | 安装注意 |
+|------|------|---------|
+| **Python** 3.9+ | [python.org](https://www.python.org/downloads/) | **勾选 "Add Python to PATH"** |
+| **Git** | [git-scm.com](https://git-scm.com/download/) | 一路默认 |
+| **Node.js** 18+ | [nodejs.org](https://nodejs.org/) | 选 LTS 版本 |
+
+装完验证（关掉终端重新打开）：
+
+```bash
+python --version   # Python 3.9+
+git --version      # git version 2.x
+node --version     # v18+
+```
+
+### 第 2 步：装 Claude Code（可选，不用也行）
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+装完后 `claude` 回车即可进入。不用 Claude Code 的话，直接用终端跑 Python 命令也行。
+
+### 第 3 步：获取 DeepSeek API Key
+
+1. 打开 [platform.deepseek.com](https://platform.deepseek.com)
+2. 注册登录 → **API Keys** → 创建 key
+3. 复制密钥（格式：`sk-xxxxxxxx`）
+
+> 费用：100 篇论文约 ¥1.5
+
+### 第 4 步：设环境变量（一劳永逸）
+
+```bash
+# Windows（管理员 PowerShell）
+setx DEEPSEEK_API_KEY "sk-你的key"
+
+# macOS / Linux（终端）
+echo 'export DEEPSEEK_API_KEY=sk-你的key' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**关闭终端重新打开**，验证：
+
+```bash
+# Windows
+echo %DEEPSEEK_API_KEY%
+
+# macOS / Linux
+echo $DEEPSEEK_API_KEY
+```
+
+### 第 5 步：安装 paper-distill
+
+```bash
+git clone https://github.com/dmao29800-jpg/paper-distill.git
+cd paper-distill
+pip install -r requirements.txt
+```
+
+### 第 6 步：测试
+
+```bash
+# 预览分类
+python cli.py -i ./你的论文文件夹 -o ./output --dry-run --classify -n 3
+
+# 正式跑 3 篇试试
+python cli.py -i ./你的论文文件夹 -o ./output -c 1 -n 3
+```
+
+如果上面 6 步全部顺利，这套工具就部署完了。下面看具体怎么用。
+
+---
+
 ## 触发条件
 
 当用户提到以下关键词时调用此 Skill：
