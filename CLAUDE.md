@@ -1,22 +1,37 @@
-# Paper Distill Skill
+# Paper Distill
 
-从学术论文 PDF 批量生成 LoRA/SFT 监督微调训练数据。
-**20 个理工科预设 + 自动学科识别**，调用 DeepSeek API，断点续传，并发处理。
+从学术论文 PDF 批量生成大模型 SFT 微调训练数据。20 个理工科预设 + 自动学科识别 + 数值脱敏，调用 DeepSeek API。
 
-## Repository
-
-https://github.com/dmao29800-jpg/paper-distill
+Repository: https://github.com/dmao29800-jpg/paper-distill
 
 ## 触发条件
 
-调用此 Skill 当用户提到：
+当用户提到以下关键词时调用此 Skill：
 - "论文数据清洗" / "生成 SFT 数据" / "论文蒸馏" / "paper distill"
 - "从论文提取 QA 对" / "论文知识提取"
 - "批量处理论文" + "AI 训练数据" / "微调数据"
 
-## 快速开始
+---
 
-### 1. 安装
+## 用户教程
+
+### 1. 准备工作
+
+- Python 3.9+：[python.org](https://www.python.org/downloads/)，安装时勾选 "Add Python to PATH"
+- DeepSeek API Key：[platform.deepseek.com](https://platform.deepseek.com/api_keys) 注册获取
+- 设置环境变量（一劳永逸，重启终端生效）：
+
+```bash
+# Windows
+setx DEEPSEEK_API_KEY "sk-你的key"
+
+# macOS / Linux
+export DEEPSEEK_API_KEY=sk-你的key
+```
+
+验证：`echo %DEEPSEEK_API_KEY%` 应显示 `sk-xxx...`
+
+### 2. 安装
 
 ```bash
 git clone https://github.com/dmao29800-jpg/paper-distill.git
@@ -24,114 +39,92 @@ cd paper-distill
 pip install -r requirements.txt
 ```
 
-### 2. 设置 API Key
+### 3. 第一次运行
+
+建议先拿 3-5 篇试试水。
+
+**预览分类：**
 
 ```bash
-# Windows
-set DEEPSEEK_API_KEY=sk-你的key
-
-# macOS / Linux
-export DEEPSEEK_API_KEY=sk-你的key
+python cli.py -i ./papers -o ./output --dry-run --classify
 ```
 
-DeepSeek API Key 获取: https://platform.deepseek.com/api_keys
+输出示例：`论文.pdf → 土木工程(主,34) + 结构工程(10) + 机械工程(7)`
 
-### 3. 运行
+**正式处理：**
 
 ```bash
-# 零配置：自动检测每篇论文学科（推荐）
 python cli.py -i ./papers -o ./output -c 3
-
-# 预览分类结果（不实际处理）
-python cli.py -i ./papers --dry-run --classify -n 20
-
-# 手动指定学科
-python cli.py -i ./papers -o ./output -d civil_engineering
-
-# 只处理前 100 篇
-python cli.py -i ./papers -o ./output -c 5 -n 100
-
-# 查看所有支持的学科
-python cli.py --list-disciplines
 ```
 
-## 核心功能
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `-i` | PDF 输入文件夹 | 必填 |
+| `-o` | 输出文件夹 | 必填 |
+| `-c` | 并发数 (1-5) | 1 |
+| `-n` | 最多处理几篇 | 全部 |
+| `-d` | 指定学科 | auto |
+| `--dry-run --classify` | 仅预览分类 | — |
+| `--no-clean` | 保留中间文件 | 自动清理 |
+| `--list-disciplines` | 列出所有学科 | — |
 
-### 🧠 自动学科识别（默认）
+**输出：** 每个 PDF 生成一个 `.txt` 文件（JSONL），首行 `#` 标注学科，后续每行一个 JSON，字段：`input`、`output`、`doc_id`、`type`。
 
-论文拖进去，无需指定学科。引擎扫描论文文本中的关键词，自动匹配最合适的 Prompt 模板。
+### 4. 检查质量
 
-```
-MTT20195602_13.pdf  →  土木工程  (score: 34)  ████████████████████
-MTT20215805_22.pdf  →  交通运输  (score: 18)  ██████████████
-```
+**doc_id 是否逐字匹配：**
 
-识别逻辑：每个学科有 `high`（权重3分）和 `medium`（权重1分）两组关键词，取最高分且超过阈值（5分）的学科，否则兜底 `generic`。
-
-### 📚 20 个理工科预设
-
-| 大类 | 学科 Key | 禁数策略 |
-|------|----------|----------|
-| 土木建筑 | `civil_engineering` | strict |
-| | `structural_engineering` | strict |
-| | `architecture_urban` | contextual |
-| 机械制造 | `mechanical_engineering` | contextual |
-| | `aerospace` | strict |
-| 材料化工 | `materials_science` | contextual |
-| | `chemical_engineering` | contextual |
-| | `chemistry` | contextual |
-| 电气信息 | `electrical_engineering` | contextual |
-| | `electronics` | contextual |
-| | `computer_science` | contextual |
-| | `control_automation` | contextual |
-| 理学 | `physics` | contextual |
-| | `mathematics` | contextual |
-| 环境能源 | `environmental_science` | strict |
-| | `energy_power` | contextual |
-| 交通水利 | `transportation` | contextual |
-| | `hydrology_water` | contextual |
-| 地质 | `geology_geophysics` | contextual |
-| 生物医学 | `biology_medicine` | strict |
-| 兜底 | `generic` | contextual |
-
-### ⚙️ 断点续传
-
-中断后重新运行相同命令，自动跳过已完成论文。进度记录在 `{output_dir}/progress.json`。
-
-### 🔀 并发处理
-
-`-c 3` 表示 3 篇同时处理。建议 3-5，视 API 配额而定。
-
-## 性能参考
-
-| 指标 | 数值 |
-|------|------|
-| 单篇耗时 | 15-30 秒 |
-| 单篇费用 | ¥0.01-0.02 |
-| 100 篇总耗时 | ~25 分钟（并发3） |
-| 100 篇总费用 | ~¥1.5 |
-
-## 输出格式
-
-每篇论文生成一个 `.txt` 文件，内容为 JSONL：
-
-```jsonl
-{"input":"在软土地区进行深基坑开挖时，如何评估其对邻近既有隧道的影响？","output":"可通过数值模拟方法建立三维模型...","doc_id":"软土地区深基坑开挖对邻近既有隧道的影响研究","type":"分析类"}
+```bash
+python -c "
+import json, glob
+for f in glob.glob('./output/*.txt'):
+    with open(f, encoding='utf-8') as fp:
+        fp.readline(); obj = json.loads(fp.readline())
+        print(obj['doc_id'])
+"
 ```
 
-## 自定义学科
+**统计类型分布：**
 
-编辑 `configs/disciplines.yaml`，添加新条目：
+```bash
+python -c "
+import json, glob
+from collections import Counter
+types = Counter()
+for f in glob.glob('./output/*.txt'):
+    with open(f, encoding='utf-8') as fp:
+        fp.readline()
+        for line in fp: types[json.loads(line)['type']] += 1
+for t, c in types.most_common(): print(f'  {t}: {c}')
+"
+```
+
+理想：解释/分析/因果类 ≥70%，建议/对策类不过半。
+
+### 5. 批量处理
+
+```bash
+python cli.py -i ./papers -o ./output -c 3          # 全部，并发3，~25min/100篇，~¥1.5
+python cli.py -i ./papers -o ./output -c 5 -n 100   # 前100篇，并发5
+```
+
+**中断后恢复：** 重新运行相同命令，自动跳过已完成论文。
+
+**手动指定学科：** `python cli.py -i ./papers -o ./output -d physics`
+
+### 6. 自定义学科
+
+编辑 `configs/disciplines.yaml`：
 
 ```yaml
 disciplines:
   ocean_engineering:
     domain: "海洋工程"
     keywords:
-      high: [海洋平台, 立管, 系泊, 波浪荷载]
-      medium: [水深, 浮式, 导管架, 水下, 腐蚀, 海流]
+      high: [海洋平台, 立管, 系泊, 波浪荷载]     # +3 分
+      medium: [水深, 浮式, 导管架, 水下, 海流]    # +1 分
     numeric_policy: strict
-    forbidden_names: [SACS, OrcaFlex, SESAM]
+    forbidden_names: [SACS, OrcaFlex]
     type_labels:
       - 解释类/分析类/比较类/评价类
       - 设计类/机理类/因果类/定义类
@@ -143,68 +136,77 @@ disciplines:
       - "设计/对策/建议 ≤ 30%"
 ```
 
-关键词选择原则：
-- `high`: 该学科独有、不会与其他学科混淆的术语（如"盾构""基坑"对土木工程）
-- `medium`: 该学科常用但可能与其他学科有交叉的术语
+关键词：`high` = 学科独有术语，`medium` = 常用但可能交叉的术语。
+
+### 7. FAQ
+
+| 问题 | 解决 |
+|------|------|
+| PDF 提取为空 | 扫描版 PDF 无文本层，需 OCR 预处理 |
+| 分类不准 | 手动 `-d physics`，或补充 `disciplines.yaml` 关键词 |
+| API 报错 | 降并发 `-c 1`，查余额，`ping api.deepseek.com` |
+| 保留日志 | 加 `--no-clean` |
+| 多标签太少 | 补充次要学科的 medium 关键词 |
+| doc_id 不对 | 确保 PDF 文件名含论文标题（格式：`标题_作者.pdf`）|
+
+---
+
+## 命令速查
+
+```bash
+python cli.py -i ./papers -o ./out -c 3                # 自动识别 + 并发3
+python cli.py -i ./papers -o ./out -d materials_science  # 指定学科
+python cli.py -i ./papers -o ./out --dry-run --classify  # 预览分类
+python cli.py -i ./papers -o ./out -c 3 -n 50           # 前50篇
+python cli.py --list-disciplines                         # 列出学科
+```
+
+---
+
+## 项目结构
+
+```
+paper-distill/
+├── engine/
+│   ├── pdf_extractor.py        # PDF 文本提取
+│   ├── api_client.py           # DeepSeek API 封装 + 费用追踪
+│   ├── jsonl_parser.py         # JSONL 解析 + 校验
+│   ├── prompt_builder.py       # Jinja2 模板 + 学科 Prompt + 脱敏
+│   ├── classifier.py           # 关键词分类器 + 多标签
+│   ├── checkpoint.py           # 断点续传
+│   └── pipeline.py             # 主流水线 + 并发调度
+├── configs/
+│   └── disciplines.yaml        # 20 学科配置 + 关键词库
+├── cli.py                      # 命令行入口
+├── README.md                   # 项目介绍
+├── CLAUDE.md                   # 本文件
+├── requirements.txt
+└── .gitignore
+```
 
 ## Python API
 
 ```python
 from engine import Pipeline, PromptBuilder, DeepSeekClient, DisciplineClassifier
 from pathlib import Path
+import os
 
 config = Path("configs/disciplines.yaml")
-client = DeepSeekClient(api_key="sk-xxx")
-builder = PromptBuilder(config)
+client = DeepSeekClient(api_key=os.environ["DEEPSEEK_API_KEY"])
 classifier = DisciplineClassifier(config)
 
 pipeline = Pipeline(
     input_dir=Path("./papers"),
     output_dir=Path("./output"),
     api_client=client,
-    prompt_builder=builder,
-    discipline="auto",        # auto-detect per paper
+    prompt_builder=PromptBuilder(config),
+    discipline="auto",
     classifier=classifier,
     concurrency=3,
 )
 stats = pipeline.run()
-print(f"{stats['success']}/{stats['total']} papers, {stats['total_samples']} samples")
+# {'total': 100, 'success': 100, 'failed': 0, 'total_samples': 4001}
 ```
-
-## 项目结构
-
-```
-paper-distill/
-├── engine/                     # 核心引擎
-│   ├── __init__.py
-│   ├── pdf_extractor.py        # PDF 文本提取
-│   ├── api_client.py           # DeepSeek API 封装 + 费用追踪
-│   ├── jsonl_parser.py         # JSONL 解析 + 字段校验
-│   ├── prompt_builder.py       # Jinja2 模板 + 学科渲染
-│   ├── classifier.py           # 关键词自动分类器
-│   ├── checkpoint.py           # 断点续传
-│   └── pipeline.py             # 主流水线 + 并发调度
-├── configs/
-│   └── disciplines.yaml        # 20 学科配置 + 关键词
-├── cli.py                      # 命令行入口
-├── CLAUDE.md                   # Skill 说明文档
-├── requirements.txt
-└── .gitignore
-```
-
-## 常见问题
-
-**Q: 论文文本提取为空？**
-A: 部分扫描版 PDF 不含文本层，pypdf 无法提取。可尝试用 OCR 工具预处理。
-
-**Q: 自动分类不准？**
-A: 手动指定 `-d civil_engineering`。或编辑 `disciplines.yaml` 补充该领域的特征关键词。
-
-**Q: API 频繁报错？**
-A: 降低并发数 `-c 1`，或检查 API 账户余额。
-
-**Q: 生成的样本有空字段/格式错误？**
-A: 无效行会被自动过滤并统计在日志中，原始响应对应 `_debug_raw.txt` 保存。
 
 ## 依赖
 
