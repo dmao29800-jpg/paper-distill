@@ -159,6 +159,10 @@ def process_single(
         classifier: Required if discipline="auto".
     """
     filename = pdf_path.name
+    # Derive paper title from filename: "title_author.pdf" → "title"
+    stem = pdf_path.stem
+    parts = stem.rsplit("_", 1)
+    paper_title = parts[0] if len(parts) > 1 else stem
     out_path = output_dir / (pdf_path.stem + ".txt")
     start = time.time()
 
@@ -237,6 +241,7 @@ def process_single(
     full_prompt = prompt_builder.build(
         discipline=prompt_disc,
         paper_filename=filename,
+        paper_title=paper_title,
         paper_text=paper_text,
     )
 

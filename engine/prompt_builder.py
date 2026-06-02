@@ -44,19 +44,20 @@ output 中严禁出现以下任何内容：
 特别注意禁止以下专用名称：{% for n in forbidden_names %}{{ n }}{% if not loop.last %}、{% endif %}{% endfor %}。一律改为"某研究""数值模拟软件""经验公式"等通用表述。
 {% endif %}
 
-【最高优先级约束：doc_id 必须与原文标题逐字一致】
-doc_id 必须从论文正文第一页/摘要上方直接提取论文的真实标题。
-具体规则：
-- 原文标题是什么，doc_id 就是什么——禁止总结、缩写、改写、补全
-- 若原文标题为英文，保持英文原文，不要翻译
-- 若原文有中英文双语标题，优先使用中文标题
-- 禁止自行编造标题，禁止从关键词或摘要中拼接标题
-- 不确定时：宁可留空也不编造
-错误示例（禁止）：
-  原文标题："钢-混凝土组合梁新型连接件疲劳性能试验研究"
+【最高优先级约束：doc_id 必须使用以下论文标题，逐字复制，不得修改】
+论文标题：{paper_title}
+
+doc_id 字段必须等于上述论文标题，规则：
+- 逐字复制，不得缩写、改写、翻译、补全
+- 上述标题是最终权威来源，不要从正文中另行提取
+- 哪怕正文中的标题与此不同，也必须使用此标题
+
+错误示例（绝对禁止）：
+  给定标题："钢-混凝土组合梁新型连接件疲劳性能试验研究"
   ✗ "组合梁连接件疲劳研究"（缩写）
   ✗ "钢混组合梁疲劳性能试验"（改写）
-  ✗ "新型连接件疲劳试验研究"（删减）
+  ✗ 从正文中提取的其他标题
+
 正确示例：
   ✓ "钢-混凝土组合梁新型连接件疲劳性能试验研究"（逐字一致）
 
@@ -107,7 +108,7 @@ output 是否能在摘要/正文中找到依据或原理？若否→重写或删
 输出格式（示例，仅示范结构，实际不要输出本行）
 {{ output_example }}
 
-论文文件名：{paper_filename}
+论文标题：{paper_title}
 
 论文内容如下：
 {paper_text}"""
@@ -158,6 +159,7 @@ class PromptBuilder:
 
     def build(self, discipline = "generic",
               paper_filename: str = "{paper_filename}",
+              paper_title: str = "",
               paper_text: str = "{paper_text}") -> str:
         """
         Build a complete prompt for the given discipline(s).
@@ -166,6 +168,7 @@ class PromptBuilder:
             discipline: Single discipline key (str) or list of keys for
                         cross-disciplinary papers.
             paper_filename: PDF filename for identification.
+            paper_title: Derived paper title (from filename, mandatory for doc_id).
             paper_text: Extracted paper full text.
 
         Returns:
@@ -198,6 +201,11 @@ class PromptBuilder:
 
         # Handle conditional blocks in non-Jinja2 mode
         prompt = self._strip_jinja_blocks(prompt, params)
+
+        # Replace raw placeholders (single braces, not Jinja2)
+        prompt = prompt.replace("{paper_filename}", paper_filename)
+        prompt = prompt.replace("{paper_title}", paper_title)
+        prompt = prompt.replace("{paper_text}", paper_text)
 
         return prompt
 
