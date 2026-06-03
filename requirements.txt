@@ -3,3 +3,4 @@ openai>=1.0.0
 pyyaml>=6.0
 jinja2>=3.0
 gradio>=5.0
+playwright>=1.40
