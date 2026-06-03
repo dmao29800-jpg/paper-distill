@@ -21,6 +21,12 @@
 
 ---
 
+### 🔗 配套工具
+
+> 没有论文 PDF？用 **[CNKI Harvest](https://github.com/dmao29800-jpg/cnki-harvest)** 从知网自动搜索+筛选+下载，输出直接对接 Paper Distill。
+
+---
+
 ## 为什么这个工具不一样？
 
 ### 市面上大部分 PDF→QA 工具，有一个没人谈的问题
