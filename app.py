@@ -1,169 +1,121 @@
 #!/usr/bin/env python3
 """
-论文工坊 / Paper Workshop — 知网采集 + 论文蒸馏 一站式 Web 界面
-Run: python app.py   →  open http://127.0.0.1:7860
+Paper Workshop — 知网关键词搜索 + 下载 + 蒸馏 一站式
+Run: python app.py  →  http://127.0.0.1:7860
 """
-import os, sys, json, time, shutil, tempfile, zipfile, logging, re, threading
+import os, sys, json, time, shutil, tempfile, zipfile, logging, threading
 from pathlib import Path
 from datetime import datetime
 
 _SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SCRIPT_DIR))
 
-# ── Try importing cnki-harvest (optional) ──────────────────
+# ── cnki-harvest path ──────────────────────────────────────
 _CNKI_DIR = _SCRIPT_DIR.parent / "cnki-harvest"
-_CNKI_AVAILABLE = _CNKI_DIR.exists()
-if _CNKI_AVAILABLE:
+_HAS_CNKI = _CNKI_DIR.exists()
+if _HAS_CNKI:
     sys.path.insert(0, str(_CNKI_DIR))
 
 import gradio as gr
 import yaml
 
-# ── Config loading ─────────────────────────────────────────
-def _load_disciplines():
-    """Load 3-layer discipline config from cnki-harvest or fallback."""
-    paths = [
-        _CNKI_DIR / "configs" / "disciplines.yaml" if _CNKI_AVAILABLE else None,
-        _SCRIPT_DIR / "configs" / "disciplines.yaml",
-    ]
-    for p in paths:
-        if p and p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f)
-    return {"disciplines": {}}
+# ── Helpers ────────────────────────────────────────────────
+def _load_journals():
+    """Load core journal list for --core filtering."""
+    p = _CNKI_DIR / "configs" / "disciplines.yaml"
+    if not p.exists():
+        return []
+    with open(p, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    return cfg.get("core_journal_list", [])
+
+_CORE_JOURNALS = _load_journals()
 
 
-_DISC_CONFIG = _load_disciplines()
+# ── Phase 1: Search CNKI ──────────────────────────────────
+def phase_search(keywords: str, from_year: int, to_year: int,
+                 core_only: bool, max_results: int) -> tuple:
+    """Search CNKI. Returns (papers: list[dict] | None, error: str)."""
+    kw = [k.strip() for k in keywords.replace("，", ",").split(",") if k.strip()]
+    if not kw:
+        return None, "请输入至少一个关键词"
+
+    if not _HAS_CNKI:
+        return None, "cnki-harvest 未安装（需要放在 paper-distill 同级目录）"
+
+    try:
+        from engine.searcher import search as cnki_search
+    except ImportError as e:
+        return None, f"加载 cnki-harvest 失败: {e}"
+
+    journals = _CORE_JOURNALS if core_only else None
+    try:
+        papers = cnki_search(
+            keywords=kw,
+            from_year=from_year, to_year=to_year,
+            core_only=core_only,
+            core_journals=journals,
+            max_results=max_results,
+        )
+    except Exception as e:
+        return None, f"知网搜索失败: {e}"
+
+    if not papers:
+        return [], "未找到匹配论文，尝试换关键词或放宽年份"
+
+    return papers, None
 
 
-def get_categories():
-    return list(_DISC_CONFIG.get("disciplines", {}).keys())
+# ── Phase 2: Download PDFs ────────────────────────────────
+def phase_download(papers: list[dict], output_dir: Path) -> tuple:
+    """Download paper PDFs. Returns (ok: int, fail: int, log: list[str])."""
+    log = []
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-
-def get_disciplines(category: str):
-    return list(_DISC_CONFIG.get("disciplines", {}).get(category, {}).keys())
-
-
-def get_sub_disciplines(category: str, discipline: str):
-    disc = _DISC_CONFIG.get("disciplines", {}).get(category, {}).get(discipline, {})
-    subs = disc.get("sub_disciplines", {})
-    return list(subs.keys())
-
-
-def get_keywords_for_sub(category: str, discipline: str, sub: str):
-    disc = _DISC_CONFIG.get("disciplines", {}).get(category, {}).get(discipline, {})
-    sub_cfg = disc.get("sub_disciplines", {}).get(sub, {})
-    return ", ".join(sub_cfg.get("keywords", []))
-
-
-def get_all_keywords(category: str, discipline: str):
-    disc = _DISC_CONFIG.get("disciplines", {}).get(category, {}).get(discipline, {})
-    kw = []
-    for sub_cfg in disc.get("sub_disciplines", {}).values():
-        kw.extend(sub_cfg.get("keywords", []))
-    return list(set(kw))
-
-
-# ── CNKI Search Engine ────────────────────────────────────
-def search_cnki(discipline: str, from_year: int, to_year: int,
-                core_only: bool, max_results: int, log_fn) -> list[dict]:
-    """Search CNKI. Returns list of paper metadata dicts."""
-    if not _CNKI_AVAILABLE:
-        return _mock_search(discipline, max_results)
-
-    log_fn("正在连接知网...")
-    from engine.searcher import search as cnki_search
-    keywords = get_all_keywords(
-        _current_category or "工学",
-        discipline
-    )
-    core_journals = None
-    if core_only:
-        disc = _DISC_CONFIG.get("disciplines", {}).get(
-            _current_category or "工学", {}
-        ).get(discipline, {})
-        core_journals = disc.get("core_journals", []) or \
-            _DISC_CONFIG.get("core_journal_list", [])
-
-    log_fn(f"搜索关键词: {len(keywords)} 个, 核心期刊: {core_only}")
-    papers = cnki_search(
-        keywords=keywords,
-        from_year=from_year,
-        to_year=to_year,
-        core_only=core_only,
-        core_journals=core_journals,
-        max_results=max_results,
-    )
-    return papers
-
-
-_current_category = None
-
-
-def _mock_search(discipline, count):
-    return [{
-        "title": f"[模拟] {discipline}领域论文-{i}",
-        "authors": "测试作者",
-        "journal": "测试期刊",
-        "year": "2024",
-        "detail_url": "",
-        "is_core": True,
-    } for i in range(min(count, 5))]
-
-
-# ── CNKI PDF Download ─────────────────────────────────────
-def download_papers(papers: list[dict], output_dir: Path,
-                    log_fn, progress_fn) -> tuple[int, int]:
-    """Download papers with rate limiting. Returns (success, failed)."""
-    if not _CNKI_AVAILABLE:
-        log_fn("[模拟模式] cnki-harvest 未安装，跳过真实下载")
-        for i, p in enumerate(papers):
-            (output_dir / f"mock_{i}.txt").write_text(f"mock paper: {p['title']}")
-        return len(papers), 0
+    if not _HAS_CNKI:
+        log.append("[模拟] 未检测到 cnki-harvest，跳过下载")
+        return 0, 0, log
 
     from engine.downloader import DownloadController
     from engine.checkpoint import Checkpoint
 
-    checkpoint = Checkpoint(output_dir / ".harvest_progress.json")
-    controller = DownloadController(output_dir, checkpoint)
+    ckpt = Checkpoint(output_dir / ".harvest_progress.json")
+    ctrl = DownloadController(output_dir, ckpt)
 
-    success = 0
-    failed = 0
+    ok, fail = 0, 0
     total = len(papers)
 
-    for i, paper in enumerate(papers):
-        title = paper.get("title", f"paper-{i}")[:60]
-        progress_fn((i + 1) / total, f"下载中 ({i+1}/{total}): {title}")
-
-        if checkpoint.is_done(title):
-            success += 1
+    for i, p in enumerate(papers):
+        title = p.get("title", f"paper-{i}")[:60]
+        if ckpt.is_done(title):
+            ok += 1
             continue
 
         try:
-            result = controller.download(paper)
+            result = ctrl.download(p)
             if result:
-                checkpoint.mark_done(title, "downloaded")
-                success += 1
-                log_fn(f"  ✓ {title}")
+                ckpt.mark_done(title, "downloaded")
+                ok += 1
+                log.append(f"  [{i+1}/{total}] OK  {title}")
             else:
-                checkpoint.mark_done(title, "failed")
-                failed += 1
-                log_fn(f"  ✗ {title}")
+                ckpt.mark_done(title, "failed")
+                fail += 1
+                log.append(f"  [{i+1}/{total}] FAIL  {title}")
         except Exception as e:
-            checkpoint.mark_done(title, "failed")
-            failed += 1
-            log_fn(f"  ✗ {title} — {e}")
+            ckpt.mark_done(title, "failed")
+            fail += 1
+            log.append(f"  [{i+1}/{total}] ERR  {title}: {e}")
 
-        checkpoint.save()
+        ckpt.save()
         time.sleep(1.5)
 
-    return success, failed
+    return ok, fail, log
 
 
-# ── Paper Distill Pipeline ─────────────────────────────────
-def run_distill(input_dir: Path, output_dir: Path, api_key: str,
-                concurrency: int, log_fn, progress_fn):
-    """Run paper-distill pipeline with progress."""
+# ── Phase 3: Distill ──────────────────────────────────────
+def phase_distill(input_dir: Path, output_dir: Path,
+                  api_key: str, concurrency: int) -> dict:
+    """Run paper-distill pipeline."""
     from engine.api_client import DeepSeekClient
     from engine.prompt_builder import PromptBuilder
     from engine.classifier import DisciplineClassifier
@@ -172,30 +124,8 @@ def run_distill(input_dir: Path, output_dir: Path, api_key: str,
     config = _SCRIPT_DIR / "configs" / "disciplines.yaml"
     client = DeepSeekClient(api_key)
     builder = PromptBuilder(config)
-    classifier = DisciplineClassifier(config)
+    classifier = DisciplineClassifier(config) if config.exists() else None
 
-    pdfs = sorted(f for f in input_dir.glob("*.pdf")
-                  if not f.name.startswith("~"))
-
-    if not pdfs:
-        log_fn("没有找到 PDF 文件")
-        return None
-
-    log_fn(f"找到 {len(pdfs)} 篇论文，开始蒸馏...")
-
-    # Classify first
-    log_fn("正在识别学科...")
-    classify_map = {}
-    for i, p in enumerate(pdfs):
-        disc_list = classifier.classify_multi_from_pdf(p)
-        classify_map[p.name] = disc_list
-        if len(disc_list) == 1:
-            log_fn(f"  {p.name[:40]} → {disc_list[0][1]} ({disc_list[0][2]:.0f})")
-        else:
-            extras = "+".join(n for _, n, _ in disc_list[1:])
-            log_fn(f"  {p.name[:40]} → {disc_list[0][1]}(主) + {extras}")
-
-    # Run pipeline
     pipeline = Pipeline(
         input_dir=input_dir,
         output_dir=output_dir,
@@ -205,215 +135,143 @@ def run_distill(input_dir: Path, output_dir: Path, api_key: str,
         concurrency=concurrency,
         classifier=classifier,
     )
-
-    stats = pipeline.run()
-    return stats
+    return pipeline.run()
 
 
-# ── Main UI Handler (Generator for streaming) ──────────────
-def run_pipeline(
-    category, discipline, sub_discipline, custom_keywords,
-    from_year, to_year, max_papers, core_only,
-    api_key, concurrency,
-    progress=gr.Progress(),
-):
-    """Unified pipeline: CNKI search → download → distill."""
-    global _current_category
-    _current_category = category
+# ── Main Handler ──────────────────────────────────────────
+def run(keywords, from_year, to_year, max_papers, core_only,
+        api_key, concurrency, progress=gr.Progress()):
+    """Generator: yield (status_msg, zip_path, log_text)."""
 
-    log_lines = []
-    def log(msg):
-        log_lines.append(f"[{datetime.now():%H:%M:%S}] {msg}")
-
-    if not discipline:
-        yield "请选择学科", None, "\n".join(log_lines)
-        return
-
-    # Validate API key for distill step
+    # Validate
     key = (api_key or "").strip() or os.environ.get("DEEPSEEK_API_KEY", "")
     if not key:
-        yield "请输入 DeepSeek API Key", None, "\n".join(log_lines)
+        yield "❌ 请输入 DeepSeek API Key", None, "[!] 缺少 API Key"
         return
 
     # Setup workspace
-    work_dir = Path(tempfile.mkdtemp(prefix="paper_workshop_"))
-    pdf_dir = work_dir / "pdfs"
-    distill_out = work_dir / "distilled"
+    work = Path(tempfile.mkdtemp(prefix="pw_"))
+    pdf_dir = work / "pdfs"
+    out_dir = work / "output"
     pdf_dir.mkdir()
-    distill_out.mkdir()
 
-    # ── Phase 1: CNKI Search ──
-    progress(0.05, desc="Phase 1/3: 搜索知网...")
-    log("=" * 40)
-    log(f"学科: {category} → {discipline} → {sub_discipline or '全部'}")
-    log(f"年份: {from_year}-{to_year}, 核心: {core_only}, 最多: {max_papers}")
-    yield None, None, "\n".join(log_lines)
+    T = lambda: datetime.now().strftime("%H:%M:%S")
+    log = []
 
-    # Build keywords
-    if custom_keywords and custom_keywords.strip():
-        keywords = [k.strip() for k in custom_keywords.replace("，", ",").split(",") if k.strip()]
-        log(f"自定义关键词: {keywords}")
-        papers = _search_with_keywords(
-            category, discipline, keywords, from_year, to_year,
-            core_only, max_papers, log
-        )
-    else:
-        papers = search_cnki(discipline, from_year, to_year,
-                             core_only, max_papers, log)
+    def add(msg):
+        log.append(f"[{T()}] {msg}")
 
-    if not papers:
-        log("未找到匹配论文")
-        yield "未找到论文，请调整筛选条件", None, "\n".join(log_lines)
-        return
+    add(f"关键词: {keywords}")
+    add(f"年份: {from_year}-{to_year} | 核心: {core_only} | 最多: {max_papers}")
+    yield None, None, "\n".join(log)
 
-    log(f"找到 {len(papers)} 篇论文")
-    yield None, None, "\n".join(log_lines)
+    # ── Phase 1: Search ──
+    progress(0.05, desc="搜索知网...")
+    add("正在搜索知网...")
+    yield None, None, "\n".join(log)
 
-    # ── Phase 2: Download PDFs ──
-    progress(0.15, desc="Phase 2/3: 下载 PDF...")
-    log("正在下载 PDF...")
-    yield None, None, "\n".join(log_lines)
-
-    def progress_fn(val, msg):
-        progress(0.15 + val * 0.35, desc=msg)
-
-    ok, bad = download_papers(papers, pdf_dir, log, progress_fn)
-    log(f"下载完成: {ok} 成功, {bad} 失败")
-
-    pdf_count = len(list(pdf_dir.glob("*.pdf")))
-    if pdf_count == 0:
-        log("没有成功下载任何 PDF")
-        yield "下载失败", None, "\n".join(log_lines)
-        return
-
-    yield None, None, "\n".join(log_lines)
-
-    # ── Phase 3: Distill ──
-    progress(0.55, desc="Phase 3/3: 蒸馏论文...")
-    log(f"开始蒸馏 {pdf_count} 篇论文 (并发={concurrency})...")
-    yield None, None, "\n".join(log_lines)
-
-    def distill_progress(val, msg):
-        progress(0.55 + val * 0.35, desc=msg)
-
-    # Override pipeline logging to capture progress
-    stats = run_distill(pdf_dir, distill_out, key,
-                        int(concurrency), log, distill_progress)
-
-    if not stats:
-        log("蒸馏失败")
-        yield "蒸馏过程出错", None, "\n".join(log_lines)
-        return
-
-    # ── Package results ──
-    progress(0.92, desc="打包结果...")
-    zip_path = work_dir / "paper_workshop_results.zip"
-    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
-        for txt in sorted(distill_out.glob("*.txt")):
-            zf.write(txt, txt.name)
-        # Also include raw PDFs
-        for pdf in sorted(pdf_dir.glob("*.pdf")):
-            zf.write(pdf, f"raw_pdfs/{pdf.name}")
-
-    log("=" * 40)
-    log(f"全部完成!")
-    log(f"  论文: {stats['total']} | 成功: {stats['success']}")
-    log(f"  总样本: {stats['total_samples']}")
-    log(f"  耗时: {stats.get('elapsed', 'N/A')}")
-
-    # Build summary
-    summary = f"""## 处理完成
-
-| 指标 | 数值 |
-|------|------|
-| 搜索论文 | {len(papers)} 篇 |
-| 下载成功 | {ok} 篇 |
-| 蒸馏成功 | {stats['success']}/{stats['total']} |
-| 总样本数 | {stats['total_samples']} |
-| 耗时 | {stats.get('elapsed', 'N/A')} |
-"""
-
-    yield summary, str(zip_path), "\n".join(log_lines)
-
-    # Cleanup
-    threading.Thread(target=lambda: shutil.rmtree(work_dir, ignore_errors=True)).start()
-
-
-def _search_with_keywords(category, discipline, custom_kw, fy, ty,
-                          core, max_r, log_fn):
-    """Search CNKI with custom keywords instead of preset ones."""
-    if not _CNKI_AVAILABLE:
-        return _mock_search(discipline, max_r)
-    from engine.searcher import search as cnki_search
-    core_journals = None
-    if core:
-        disc = _DISC_CONFIG.get("disciplines", {}).get(
-            category, {}).get(discipline, {})
-        core_journals = disc.get("core_journals", []) or \
-            _DISC_CONFIG.get("core_journal_list", [])
-    return cnki_search(
-        keywords=custom_kw,
-        from_year=fy, to_year=ty,
-        core_only=core, core_journals=core_journals,
-        max_results=max_r,
+    papers, err = phase_search(
+        keywords, int(from_year), int(to_year),
+        core_only, int(max_papers),
     )
 
+    if err:
+        add(f"[!] {err}")
+        yield f"❌ {err}", None, "\n".join(log)
+        return
+    if not papers:
+        add("[!] 未找到任何论文")
+        yield "❌ 未找到论文", None, "\n".join(log)
+        return
 
-# ── Gradio UI ──────────────────────────────────────────────
-def update_disciplines(category):
-    return gr.update(choices=get_disciplines(category), value=None)
+    add(f"找到 {len(papers)} 篇论文")
+    yield None, None, "\n".join(log)
+
+    # ── Phase 2: Download ──
+    progress(0.2, desc="下载 PDF...")
+    add(f"开始下载 ({len(papers)} 篇)...")
+    yield None, None, "\n".join(log)
+
+    ok, fail, dlog = phase_download(papers, pdf_dir)
+    for line in dlog:
+        add(line)
+    add(f"下载: {ok} 成功, {fail} 失败")
+
+    pdfs = sorted(pdf_dir.glob("*.pdf"))
+    if not pdfs:
+        add("[!] 所有 PDF 下载失败")
+        yield "❌ 下载失败", None, "\n".join(log)
+        return
+
+    yield None, None, "\n".join(log)
+
+    # ── Phase 3: Distill ──
+    progress(0.5, desc="蒸馏论文...")
+    add(f"开始蒸馏 {len(pdfs)} 篇 (并发 {concurrency})...")
+    yield None, None, "\n".join(log)
+
+    try:
+        stats = phase_distill(pdf_dir, out_dir, key, int(concurrency))
+    except Exception as e:
+        add(f"[!] 蒸馏异常: {e}")
+        yield "❌ 蒸馏失败", None, "\n".join(log)
+        return
+
+    ok_d = stats.get("success", 0)
+    fail_d = stats.get("failed", 0)
+    samples = stats.get("total_samples", 0)
+    elapsed = stats.get("elapsed", "N/A")
+    add(f"蒸馏: {ok_d} 成功, {fail_d} 失败 | {samples} 样本 | {elapsed}")
+
+    # ── Package ──
+    progress(0.9, desc="打包...")
+    zip_path = work / "results.zip"
+    txt_files = sorted(out_dir.glob("*.txt"))
+    if not txt_files:
+        add("[!] 蒸馏未产出文件")
+        yield "❌ 无输出文件", None, "\n".join(log)
+        return
+
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+        for txt in txt_files:
+            zf.write(txt, txt.name)
+
+    add("=" * 40)
+    add(f"DONE | 论文: {len(pdfs)} | 蒸馏: {ok_d}/{ok_d+fail_d} | 样本: {samples}")
+    yield None, None, "\n".join(log)
+
+    summary = (
+        f"## 完成\n\n"
+        f"| | |\n|-|-|\n"
+        f"| 搜索 | {len(papers)} 篇 |\n"
+        f"| 下载 | {ok} 成功, {fail} 失败 |\n"
+        f"| 蒸馏 | {ok_d} 成功, {fail_d} 失败 |\n"
+        f"| 样本 | {samples} 条 |\n"
+        f"| 耗时 | {elapsed} |\n"
+    )
+    yield summary, str(zip_path), "\n".join(log)
 
 
-def update_subs(category, discipline):
-    subs = get_sub_disciplines(category, discipline)
-    return gr.update(choices=["全部"] + subs, value="全部")
-
-
-def update_keywords(category, discipline, sub):
-    if sub and sub != "全部":
-        return get_keywords_for_sub(category, discipline, sub)
-    keywords = get_all_keywords(category, discipline)
-    return ", ".join(keywords)
-
-
-with gr.Blocks(title="论文工坊 / Paper Workshop") as app:
-    gr.Markdown("""
-    # 📚 论文工坊 / Paper Workshop
-
-    知网采集 → 自动下载 → 知识蒸馏 → SFT 训练数据。一站式完成。
-    """)
+# ── UI ────────────────────────────────────────────────────
+with gr.Blocks(title="论文工坊") as app:
+    gr.Markdown("# 论文工坊 / Paper Workshop")
+    gr.Markdown("关键词搜知网 → 自动下载 PDF → 蒸馏为 SFT 训练数据")
 
     with gr.Row():
-        # ── Left Panel: Config ──
         with gr.Column(scale=1):
-            gr.Markdown("### 📥 搜索配置")
-
-            cat = gr.Dropdown(
-                choices=get_categories(), label="1. 学科门类",
-                value="工学" if "工学" in get_categories() else None,
-                interactive=True,
+            gr.Markdown("### 搜索参数")
+            keywords = gr.Textbox(
+                label="关键词（逗号分隔）",
+                placeholder="例如: 深基坑, 盾构隧道, 软土, 沉降",
+                lines=3,
             )
-            disc = gr.Dropdown(
-                label="2. 一级学科", interactive=True,
-            )
-            sub = gr.Dropdown(
-                label="3. 二级学科", interactive=True,
-            )
-            keywords_box = gr.Textbox(
-                label="关键词（可编辑）", lines=3,
-                placeholder="自动填充，可手动修改...",
-            )
-
-            gr.Markdown("### ⚙️ 采集参数")
             with gr.Row():
                 from_year = gr.Number(label="起始年", value=2020, precision=0)
                 to_year = gr.Number(label="截止年", value=2026, precision=0)
-            with gr.Row():
-                max_papers = gr.Slider(10, 300, value=50, step=10,
-                                       label="最多下载篇数")
-                core_only = gr.Checkbox(label="仅核心期刊", value=True)
+            max_papers = gr.Slider(5, 100, value=20, step=5, label="最多下载篇数")
+            core_only = gr.Checkbox(label="仅核心期刊 (北大+CSCD)", value=False)
 
-            gr.Markdown("### 🧪 蒸馏参数")
+            gr.Markdown("### 蒸馏参数")
             api_key = gr.Textbox(
                 label="DeepSeek API Key", type="password",
                 placeholder="sk-...",
@@ -421,42 +279,25 @@ with gr.Blocks(title="论文工坊 / Paper Workshop") as app:
             )
             concurrency = gr.Slider(1, 5, value=2, step=1, label="并发数")
 
-            run_btn = gr.Button("▶ 开始全流程", variant="primary", size="lg")
+            btn = gr.Button("开始全流程", variant="primary", size="lg")
 
-        # ── Right Panel: Progress + Results ──
         with gr.Column(scale=2):
-            gr.Markdown("### 📊 实时进度")
-            log_output = gr.Textbox(
-                label="处理日志", lines=18, max_lines=30,
+            gr.Markdown("### 实时日志")
+            log_box = gr.Textbox(
+                label="", lines=20, max_lines=40,
                 autoscroll=True, interactive=False,
             )
+            summary = gr.Markdown("等待开始...")
+            download = gr.File(label="下载结果 (ZIP)")
 
-            summary_output = gr.Markdown("等待开始...")
-            download_output = gr.File(label="下载结果 (ZIP)", visible=True)
-
-    # ── Cascading discipline logic ──
-    cat.change(fn=update_disciplines, inputs=cat, outputs=disc)
-    disc.change(fn=update_subs, inputs=[cat, disc], outputs=sub)
-    disc.change(
-        fn=lambda c, d, s: update_keywords(c, d, s),
-        inputs=[cat, disc, sub], outputs=keywords_box,
-    )
-    sub.change(
-        fn=lambda c, d, s: update_keywords(c, d, s),
-        inputs=[cat, disc, sub], outputs=keywords_box,
-    )
-
-    # ── Run button ──
-    run_btn.click(
-        fn=run_pipeline,
-        inputs=[cat, disc, sub, keywords_box,
-                from_year, to_year, max_papers, core_only,
+    btn.click(
+        fn=run,
+        inputs=[keywords, from_year, to_year, max_papers, core_only,
                 api_key, concurrency],
-        outputs=[summary_output, download_output, log_output],
+        outputs=[summary, download, log_box],
     )
 
-    gr.Markdown("---\n**隐私说明**：全部在本地运行，不上传任何数据到外部服务器。")
-
+    gr.Markdown("---\n全部在本地运行，不上传数据。")
 
 if __name__ == "__main__":
     if sys.platform == "win32":
@@ -466,11 +307,7 @@ if __name__ == "__main__":
             pass
     print("\n  Paper Workshop / 论文工坊")
     print("  " + "-" * 40)
-    print("  打开浏览器: http://127.0.0.1:7860")
-    print("  按 Ctrl+C 停止\n")
-    app.launch(
-        server_name="127.0.0.1",
-        server_port=7860,
-        share=False,
-        inbrowser=True,
-    )
+    print("  http://127.0.0.1:7860")
+    print("  Ctrl+C 停止\n")
+    app.launch(server_name="127.0.0.1", server_port=7860,
+               share=False, inbrowser=True)
