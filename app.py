@@ -120,7 +120,7 @@ CSS = """
 
 /* ── Global ── */
 .gradio-container {
-    max-width: 1100px !important;
+    max-width: 1400px !important;
     margin: 0 auto !important;
     font-family: 'Inter', 'Segoe UI', system-ui, sans-serif !important;
 }
@@ -178,6 +178,15 @@ body, .gradio-container {
 .card-panel:hover {
     border-color: #00e5ff33;
 }
+.card-label {
+    font-size: 0.8em;
+    color: #78909c;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1a2940;
+}
 
 /* ── File upload area ── */
 .upload-zone {
@@ -221,29 +230,28 @@ input:focus, textarea:focus, select:focus {
 /* ── Button ── */
 button.primary, .lg.primary {
     width: 100% !important;
-    padding: 14px 0 !important;
-    font-size: 1.05em !important;
-    font-weight: 600 !important;
-    letter-spacing: 1.5px !important;
-    text-transform: uppercase !important;
+    padding: 22px 0 !important;
+    font-size: 1.25em !important;
+    font-weight: 700 !important;
+    letter-spacing: 6px !important;
     border: none !important;
-    border-radius: 10px !important;
-    background: linear-gradient(135deg, #00bcd4 0%, #0097a7 50%, #006db3 100%) !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #00e5ff 0%, #00bcd4 40%, #0091ea 100%) !important;
     color: #fff !important;
     cursor: pointer !important;
     transition: all 0.3s ease !important;
-    box-shadow: 0 4px 20px rgba(0, 188, 212, 0.2) !important;
+    box-shadow: 0 4px 28px rgba(0, 229, 255, 0.25), 0 0 60px rgba(0, 229, 255, 0.06) !important;
     position: relative !important;
     overflow: hidden !important;
 }
 button.primary:hover, .lg.primary:hover {
-    background: linear-gradient(135deg, #00e5ff 0%, #00bcd4 50%, #0091ea 100%) !important;
-    box-shadow: 0 6px 32px rgba(0, 229, 255, 0.35) !important;
-    transform: translateY(-1px) !important;
+    background: linear-gradient(135deg, #00f0ff 0%, #00e5ff 40%, #00b0ff 100%) !important;
+    box-shadow: 0 8px 40px rgba(0, 229, 255, 0.45), 0 0 80px rgba(0, 229, 255, 0.12) !important;
+    transform: translateY(-2px) !important;
 }
 button.primary:active {
     transform: translateY(0) !important;
-    box-shadow: 0 2px 12px rgba(0, 188, 212, 0.25) !important;
+    box-shadow: 0 2px 16px rgba(0, 188, 212, 0.25) !important;
 }
 /* Scan line effect on button */
 button.primary::after {
@@ -327,8 +335,8 @@ with gr.Blocks(title="Paper Workshop", css=CSS, theme=gr.themes.Base()) as app:
     # ── Header ──
     gr.HTML("""
     <div class="app-header">
-        <h1>PAPER WORKSHOP</h1>
-        <div class="subtitle">Academic Knowledge Distillation Engine</div>
+        <h1>论文工坊</h1>
+        <div class="subtitle">学术知识蒸馏引擎  ·  PDF  →  SFT 训练数据</div>
     </div>
     <div class="glow-divider"></div>
     """)
@@ -336,50 +344,50 @@ with gr.Blocks(title="Paper Workshop", css=CSS, theme=gr.themes.Base()) as app:
     with gr.Row():
         with gr.Column(scale=4):
             # Upload card
-            gr.HTML('<div class="card-panel">')
+            gr.HTML('<div class="card-panel"><div class="card-label">  上传论文 PDF</div>')
             upload = gr.File(
                 file_count="multiple",
                 file_types=[".pdf"],
-                label="  DROP RESEARCH PAPERS HERE",
+                label="拖拽文件到此处或点击上传",
                 elem_classes=["upload-zone"],
-                height=200,
+                height=220,
             )
             gr.HTML('</div>')
 
             # Config card
-            gr.HTML('<div class="card-panel">')
+            gr.HTML('<div class="card-panel"><div class="card-label">  蒸馏配置</div>')
             with gr.Row():
                 with gr.Column(scale=3):
                     api_key = gr.Textbox(
-                        label="  API KEY",
+                        label="DeepSeek API Key",
                         type="password",
-                        placeholder="DeepSeek API Key  |  sk-...",
+                        placeholder="sk-... 或从环境变量 DEEPSEEK_API_KEY 读取",
                         value=os.environ.get("DEEPSEEK_API_KEY", ""),
                     )
                 with gr.Column(scale=1):
                     concurrency = gr.Slider(
                         1, 5, value=3, step=1,
-                        label="  THREADS",
+                        label="并发线程数",
                     )
             gr.HTML('</div>')
 
             # Button
-            btn = gr.Button("  INITIATE DISTILLATION  ", variant="primary", size="lg")
+            btn = gr.Button("开  始  蒸  馏", variant="primary", size="lg")
 
         with gr.Column(scale=3):
             # Results card
-            gr.HTML('<div class="card-panel">')
+            gr.HTML('<div class="card-panel"><div class="card-label">  处理结果</div>')
             summary = gr.Markdown(
-                "###  STANDBY\n\n"
-                "Awaiting research papers for distillation.\n\n"
-                "> System ready for knowledge extraction."
+                "###  待命中\n\n"
+                "上传论文 PDF 后点击「开始蒸馏」\n\n"
+                "> 系统就绪，等待知识提取任务。"
             )
             gr.HTML('</div>')
 
             # Download card
-            gr.HTML('<div class="card-panel">')
+            gr.HTML('<div class="card-panel"><div class="card-label">  结果下载</div>')
             download = gr.File(
-                label="  OUTPUT ARCHIVE",
+                label="蒸馏完成后在此处下载 ZIP",
                 elem_classes=["download-box"],
             )
             gr.HTML('</div>')
@@ -394,16 +402,16 @@ with gr.Blocks(title="Paper Workshop", css=CSS, theme=gr.themes.Base()) as app:
     gr.HTML("""
     <div class="app-footer">
         <div style="display: flex; justify-content: center; gap: 32px; flex-wrap: wrap;">
-            <span>  PDF EXTRACTION</span>
+            <span>  PDF 提取</span>
             <span style="color: #1e3050;">|</span>
-            <span>  AUTO-CLASSIFICATION</span>
+            <span>  学科识别</span>
             <span style="color: #1e3050;">|</span>
-            <span>  KNOWLEDGE DISTILLATION</span>
+            <span>  知识蒸馏</span>
             <span style="color: #1e3050;">|</span>
-            <span>  NUMERIC ANONYMIZATION</span>
+            <span>  数值脱敏</span>
         </div>
         <div style="margin-top: 12px; color: #263238;">
-            All processing local  |  No data uploaded  |  MIT License
+            全部本地处理  |  不上传数据  |  MIT 开源
         </div>
     </div>
     """)
