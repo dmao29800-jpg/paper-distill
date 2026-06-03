@@ -105,24 +105,36 @@ output 中严禁出现：
 
 ## 安装
 
-### 🖥️ Web 界面（最简单）
+### 🖥️ 一键 Web 界面（最简单）
 
 ```bash
 git clone https://github.com/dmao29800-jpg/paper-distill.git
 cd paper-distill
-pip install -r requirements.txt gradio
-python webui.py
+pip install -r requirements.txt
+python app.py
 ```
 
-浏览器打开 `http://127.0.0.1:7860`，拖拽 PDF → 点按钮 → 下载 JSONL。零命令行。
+浏览器打开 `http://127.0.0.1:7860`：
+
+```
+┌──────────────────────────────────────────────────┐
+│  📚 论文工坊 / Paper Workshop                     │
+│                                                  │
+│  左侧: 选学科 → 设年份 → 填API Key → 点按钮       │
+│  右侧: 实时日志滚动 → 完成 → 下载ZIP              │
+│                                                  │
+│  知网采集（搜索+下载PDF）→ 论文蒸馏（PDF→JSONL）   │
+│  一条龙完成                                       │
+└──────────────────────────────────────────────────┘
+```
+
+> 如果不用知网采集，用 `python webui.py` 直接上传 PDF 蒸馏。
 
 ### Claude Code Skill
 
 ```bash
 /skill install github.com/dmao29800-jpg/paper-distill
 ```
-
-安装后对 Claude 说"帮我把这 50 篇论文蒸馏成 SFT 数据"即可。
 
 ### 命令行
 
