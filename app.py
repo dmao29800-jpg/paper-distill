@@ -459,10 +459,15 @@ with gr.Blocks(title="论文工坊 / Paper Workshop") as app:
 
 
 if __name__ == "__main__":
-    print(f"\n  📚 论文工坊 / Paper Workshop")
-    print(f"  {'─' * 40}")
-    print(f"  打开浏览器: http://127.0.0.1:7860")
-    print(f"  按 Ctrl+C 停止\n")
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+    print("\n  Paper Workshop / 论文工坊")
+    print("  " + "-" * 40)
+    print("  打开浏览器: http://127.0.0.1:7860")
+    print("  按 Ctrl+C 停止\n")
     app.launch(
         server_name="127.0.0.1",
         server_port=7860,
